@@ -2,7 +2,7 @@
 Decrypts Homeworld Remastered .big files into a usable format
 
 ##Download:
-https://github.com/mon/bigDecrypter/raw/master/bigDecryptor.exe
+https://github.com/mon/bigDecrypter/raw/master/bigDecrypter.exe
 
 ##Usage:
 `bigDecrypter.exe inputBig outputBig`
