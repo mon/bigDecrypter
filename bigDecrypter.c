@@ -5,10 +5,12 @@
 
 #include "cipher.h"
 
-#define VERSION "1.1"
+#define VERSION "1.2"
 
 // how big to split decryption steps
 #define WRITE_BUFFER_SIZE 1024
+// 80 chars, make it wider if you just love progress
+#define PROGRESS_WIDTH 80
 // many brackets
 #define ROTL(val, bits) (((val) << (bits)) | ((val) >> (32-(bits))))
 
@@ -20,6 +22,25 @@ typedef struct {
     uint16_t keySize;
 } CryptFile;
 
+void update_progress(float percent) {
+    int i;
+    static float last = -1;
+    const int actualWidth = PROGRESS_WIDTH - 2;
+    
+    // Don't update if there is nothing to update
+    if(percent - last <  1.0 / PROGRESS_WIDTH)
+        return;
+    printf("\r[");
+    for(i = 0; i < actualWidth; i++) {
+        if( (float)i / (float)actualWidth < percent) {
+            printf("=");
+        } else {
+            printf(" ");
+        }
+    }
+    printf("]");
+    last = percent;
+}
 
 void decrypt(CryptFile* bigFile, char *destStr, uint32_t size, uint32_t keyOffset)
 {
@@ -53,6 +74,7 @@ int decrypt_all(CryptFile* bigFile, char* destFile) {
         decrypt(bigFile, buffer, chunkBytes, current);
         fwrite(buffer, chunkBytes, 1u, dest);
         current += chunkBytes;
+        update_progress((float)current / (float)bigFile->decryptedSize);
     }
     fclose(dest);
     return 0;
@@ -160,7 +182,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     fclose(bigFile.stream);
-    printf("\nDecrypt success!\n");
+    printf("\n\nDecrypt success!\n");
     return 0;
 }
 
