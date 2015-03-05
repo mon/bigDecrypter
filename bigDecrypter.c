@@ -28,7 +28,7 @@ void update_progress(float percent) {
     const int actualWidth = PROGRESS_WIDTH - 2;
     
     // Don't update if there is nothing to update
-    if(percent - last <  1.0 / PROGRESS_WIDTH)
+    if(percent - last <  1.0 / actualWidth)
         return;
     printf("\r[");
     for(i = 0; i < actualWidth; i++) {
