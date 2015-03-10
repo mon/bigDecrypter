@@ -18,4 +18,4 @@ The output big is identical in format to Homeworld 2 (it is the same engine, aft
 ##Compiling:
 
 At console, run `make`.
-Nothing special here. I use mingw gcc, pick your favourite C compiler.
+I use mingw gcc under cygwin, pick your favourite C compiler.
