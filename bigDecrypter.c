@@ -5,7 +5,7 @@
 
 #include "cipher.h"
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 
 // how big to split decryption steps
 #define WRITE_BUFFER_SIZE 1024
