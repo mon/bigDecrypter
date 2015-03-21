@@ -147,12 +147,13 @@ int loadCipher(CryptFile* bigFile)
       printf("Could not read encryption block location, is file wrong format or not encrypted?\n");
       return 1;
   }
-  fseek(bigFile->stream, 0, 0);
+  fseek(bigFile->stream, 0, SEEK_SET);
   return 0;
 }
 
 int main(int argc, char** argv) {
     CryptFile bigFile;
+    char archiveStr[9];
     
     printf("Homeworld Remastered .big decrypter v%s by monty. http://github.com/mon\n", VERSION);
     
@@ -162,7 +163,7 @@ int main(int argc, char** argv) {
     }
     
     if(!strcmp(argv[1], argv[2])) {
-        printf("Input filename equals output filaname. You don't want this. Exiting...\n");
+        printf("Input filename equals output filename. You don't want this. Exiting...\n");
         return 1;
     }
     printf("Opening %s...\n", argv[1]);
@@ -170,6 +171,14 @@ int main(int argc, char** argv) {
         printf("Failed to open input file %s. Are you in the Homeworld Data directory?\n", argv[1]);
         return 1;
     }
+    
+    printf("Performing sanity check...\n");
+    fgets(archiveStr, 9, bigFile.stream);
+    if(!strcmp(archiveStr, "_ARCHIVE")) {
+        printf("File begins with _ARCHIVE, This file is NOT encrypted! No need to run this.\n");
+        return 1;
+    }
+    fseek(bigFile.stream, 0, SEEK_SET);
     
     printf("Loading cipher...\n");
     if(loadCipher(&bigFile)) {
