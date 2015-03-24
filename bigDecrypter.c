@@ -7,11 +7,11 @@
 
 #define VERSION "1.3"
 
-// how big to split decryption steps
+/* how big to split decryption steps */
 #define WRITE_BUFFER_SIZE 1024
-// 80 chars, make it wider if you just love progress
+/* 80 chars, make it wider if you just love progress */
 #define PROGRESS_WIDTH 80
-// many brackets
+/* many brackets */
 #define ROTL(val, bits) (((val) << (bits)) | ((val) >> (32-(bits))))
 
 typedef struct {
@@ -27,7 +27,7 @@ void update_progress(float percent) {
     static float last = -1;
     const int actualWidth = PROGRESS_WIDTH - 2;
     
-    // Don't update if there is nothing to update
+    /* Don't update if there is nothing to update */
     if(percent - last <  1.0 / actualWidth)
         return;
     printf("\r[");
@@ -54,7 +54,7 @@ void decrypt(CryptFile* bigFile, char *destStr, uint32_t size, uint32_t keyOffse
 }
 
 int decrypt_all(CryptFile* bigFile, char* destFile) {
-    // 4GB MAX, MAY BE EXCEEDED AT SOME POINT
+    /* 4GB MAX, MAY BE EXCEEDED AT SOME POINT */
     uint32_t chunkBytes;
     uint32_t current = 0;
     char buffer[WRITE_BUFFER_SIZE];
@@ -80,7 +80,7 @@ int decrypt_all(CryptFile* bigFile, char* destFile) {
     return 0;
 }
 
-// Decompiled, cleaned up a ton, still not entirely sure how crazy xor ciphers work.
+/* Decompiled, cleaned up a ton, still not entirely sure how crazy xor ciphers work. */
 void cipher_magic(CryptFile* bigFile) {
   uint32_t i, j;
   int byte;
@@ -110,7 +110,7 @@ int loadCipher(CryptFile* bigFile)
   temp = 0;
   fseek(bigFile->stream, -4, SEEK_END);
   lastIntLoc = ftell(bigFile->stream);
-  fread(&temp, 4u, 1u, bigFile->stream); // how far back do we need to go?
+  fread(&temp, 4u, 1u, bigFile->stream); /* how far back do we need to go? */
   printf("0xDEADBE7A should be %d bytes from file end\n", temp);
   if ( temp )
   {
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     CryptFile bigFile;
     char archiveStr[9];
     
-    printf("Homeworld Remastered .big decrypter v%s by monty. http://github.com/mon\n", VERSION);
+    printf("Homeworld Remastered .big decrypter v%s by monty. http://github.com/mon/bigDecrypter\n", VERSION);
     
     if(argc != 3) {
         printf("  Usage: bigDecrypter.exe encryptedBig.big outputBig.big\n");

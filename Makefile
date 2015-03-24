@@ -1,2 +1,2 @@
 all:
-	gcc -Wall bigDecrypter.c -o bigDecrypter.exe
+	gcc -Wall -pedantic bigDecrypter.c -o bigDecrypter.exe
