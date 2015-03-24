@@ -8,7 +8,7 @@
 #define VERSION "1.3"
 
 /* how big to split decryption steps */
-#define WRITE_BUFFER_SIZE 1024
+#define WRITE_BUFFER_SIZE (1024 * 1024 * 8)
 /* 80 chars, make it wider if you just love progress */
 #define PROGRESS_WIDTH 80
 /* many brackets */
@@ -16,7 +16,7 @@
 
 typedef struct {
     FILE* stream;
-    uint32_t decryptedSize;
+    size_t decryptedSize;
     uint32_t* cipherKey;
     uint32_t* fileKey;
     uint16_t keySize;
@@ -42,9 +42,9 @@ void update_progress(float percent) {
     last = percent;
 }
 
-void decrypt(CryptFile* bigFile, char *destStr, uint32_t size, uint32_t keyOffset)
+void decrypt(CryptFile* bigFile, char *destStr, size_t size, uint32_t keyOffset)
 {
-  uint32_t i;
+  size_t i;
   
   fread(destStr, size, 1u, bigFile->stream);
 
@@ -55,11 +55,15 @@ void decrypt(CryptFile* bigFile, char *destStr, uint32_t size, uint32_t keyOffse
 
 int decrypt_all(CryptFile* bigFile, char* destFile) {
     /* 4GB MAX, MAY BE EXCEEDED AT SOME POINT */
-    uint32_t chunkBytes;
-    uint32_t current = 0;
-    char buffer[WRITE_BUFFER_SIZE];
-    FILE* dest = fopen(destFile, "wb");
+    size_t chunkBytes;
+    size_t current = 0;
+    char *buffer = (char*) malloc(WRITE_BUFFER_SIZE);
+    FILE *dest = fopen(destFile, "wb");
     
+    if(!buffer) {
+        printf("Couldn't allocate decryption buffer. No RAM?\n");
+        return 1;
+    }
     if(!dest) {
         printf("Failed to open output file %s\n", destFile);
         return 1;
