@@ -1,10 +1,10 @@
 # bigDecrypter
 Decrypts Homeworld Remastered .big files into a usable format
 
-##Download:
+## Download:
 [Stable release](https://github.com/mon/bigDecrypter/releases)
 
-##Usage:
+## Usage:
 Drag your .big file onto `dropBigHere.bat`.
 A file ending with _decrypted will be created in the same directory as the original.
 
@@ -15,7 +15,7 @@ The output big is identical in format to Homeworld 2 (it is the same engine, aft
 
 `<HOMEWORLD_REMASTERED_INSTALL>\GBXTools\WorkshopTool\Archive.exe -e C:\Destination\Directory -a decrypted.big`
 
-##Compiling:
+## Compiling:
 
 At console, run `make`.
 I use mingw gcc under cygwin, pick your favourite C compiler.
