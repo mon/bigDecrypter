@@ -5,7 +5,7 @@
 
 #include "cipher.h"
 
-#define VERSION "1.4"
+#define VERSION "1.5"
 
 /* how big to split decryption steps */
 #define WRITE_BUFFER_SIZE (1024 * 1024 * 8)
@@ -17,6 +17,9 @@
 typedef struct {
     FILE* stream;
     size_t decryptedSize;
+    size_t tocSize;
+    long bonusData;
+    size_t bonusDataSize;
     uint32_t* cipherKey;
     uint32_t* fileKey;
     uint16_t keySize;
@@ -26,7 +29,7 @@ void update_progress(float percent) {
     int i;
     static float last = -1;
     const int actualWidth = PROGRESS_WIDTH - 2;
-    
+
     /* Don't update if there is nothing to update */
     if(percent - last <  1.0 / actualWidth)
         return;
@@ -39,13 +42,14 @@ void update_progress(float percent) {
         }
     }
     printf("]");
+    fflush(stdout);
     last = percent;
 }
 
 void decrypt(CryptFile* bigFile, char *destStr, size_t size, uint32_t keyOffset)
 {
   size_t i;
-  
+
   fread(destStr, size, 1u, bigFile->stream);
 
   for(i = 0; i < size; i++) {
@@ -59,7 +63,7 @@ int decrypt_all(CryptFile* bigFile, char* destFile) {
     size_t current = 0;
     char *buffer = (char*) malloc(WRITE_BUFFER_SIZE);
     FILE *dest = fopen(destFile, "wb");
-    
+
     if(!buffer) {
         printf("Couldn't allocate decryption buffer. No RAM?\n");
         return 1;
@@ -68,7 +72,7 @@ int decrypt_all(CryptFile* bigFile, char* destFile) {
         printf("Failed to open output file %s\n", destFile);
         return 1;
     }
-    
+
     while(current < bigFile->decryptedSize) {
         if(current + WRITE_BUFFER_SIZE > bigFile->decryptedSize) {
             chunkBytes = bigFile->decryptedSize - current;
@@ -95,8 +99,8 @@ void cipher_magic(CryptFile* bigFile) {
   printf("Decrypting cipher...\n");
   for(i = 0; i < bigFile->keySize; i+= 4) {
     currentKey = bigFile->fileKey[i / 4];
-    for(byte = 0; byte < 4; byte++) {         
-      tempVal = ROTL(currentKey + bigFile->decryptedSize, 8);
+    for(byte = 0; byte < 4; byte++) {
+      tempVal = ROTL(currentKey + bigFile->tocSize, 8);
       tempBytes = (uint8_t*)&tempVal;
       for(j = 0; j < 4; j++) {
         currentKey = cipherConst[(uint8_t)(currentKey ^ tempBytes[j])] ^ (currentKey >> 8);
@@ -108,33 +112,40 @@ void cipher_magic(CryptFile* bigFile) {
 
 int loadCipher(CryptFile* bigFile)
 {
-  uint32_t temp;
+  uint32_t sentinelLoc;
+  uint32_t deadbe7a;
   uint32_t lastIntLoc;
 
-  temp = 0;
   fseek(bigFile->stream, -4, SEEK_END);
   lastIntLoc = ftell(bigFile->stream);
-  fread(&temp, 4u, 1u, bigFile->stream); /* how far back do we need to go? */
-  printf("0xDEADBE7A should be %d bytes from file end\n", temp);
-  if ( temp )
+  fread(&sentinelLoc, 4u, 1u, bigFile->stream); /* how far back do we need to go? */
+  printf("0xDEADBE7A should be %d bytes from file end\n", sentinelLoc);
+  if ( sentinelLoc )
   {
-    if ( temp < lastIntLoc - 6)
+    if ( sentinelLoc < lastIntLoc - 6)
     {
-      fseek(bigFile->stream, -temp, SEEK_CUR);
-      bigFile->decryptedSize = ftell(bigFile->stream);
-      temp = 0;
-      fread(&temp, 4u, 1u, bigFile->stream);
-      if ( temp == 0xDEADBE7A  ) {
-        printf("Found 0xDEADBE7A, located at byte %d\n", bigFile->decryptedSize);
-        temp = 0;
-        fread(&temp, 2u, 1u, bigFile->stream);
-        bigFile->keySize = temp;
-        if ( temp - 1 <= 0x3FF ) {
+      fseek(bigFile->stream, -(long)sentinelLoc, SEEK_CUR);
+      bigFile->tocSize = ftell(bigFile->stream);
+      fread(&deadbe7a, 4u, 1u, bigFile->stream);
+      if ( deadbe7a == 0xDEADBE7A  ) {
+        printf("Found 0xDEADBE7A, located at byte %zu\n", bigFile->tocSize);
+        fread(&bigFile->keySize, 2u, 1u, bigFile->stream);
+        if ( bigFile->keySize - 1 <= 0x3FF ) {
           printf("Keysize detected: %d\n", bigFile->keySize);
           bigFile->cipherKey = (uint32_t*) malloc(sizeof(char) * bigFile->keySize);
           bigFile->fileKey   = (uint32_t*) malloc(sizeof(char) * bigFile->keySize);
           fread((void *)(bigFile->fileKey), bigFile->keySize, 1u, bigFile->stream);
           cipher_magic(bigFile);
+
+          bigFile->bonusData = ftell(bigFile->stream);
+          bigFile->bonusDataSize = lastIntLoc - bigFile->bonusData;
+          if(bigFile->bonusDataSize) {
+              printf("Found %zukb of bonus data\n", bigFile->bonusDataSize / 1024);
+              bigFile->decryptedSize = lastIntLoc;
+          } else {
+              bigFile->decryptedSize = bigFile->tocSize;
+          }
+
         } else {
             printf("Keysize too big, 0x%x > 0x3FF\n", bigFile->keySize);
             return 1;
@@ -158,14 +169,14 @@ int loadCipher(CryptFile* bigFile)
 int main(int argc, char** argv) {
     CryptFile bigFile;
     char archiveStr[9];
-    
+
     printf("Homeworld Remastered .big decrypter v%s by monty. http://github.com/mon/bigDecrypter\n", VERSION);
-    
+
     if(argc != 3) {
         printf("  Usage: bigDecrypter.exe encryptedBig.big outputBig.big\n");
         return 1;
     }
-    
+
     if(!strcmp(argv[1], argv[2])) {
         printf("Input filename equals output filename. You don't want this. Exiting...\n");
         return 1;
@@ -175,7 +186,7 @@ int main(int argc, char** argv) {
         printf("Failed to open input file %s. Are you in the Homeworld Data directory?\n", argv[1]);
         return 1;
     }
-    
+
     printf("Performing sanity check...\n");
     fgets(archiveStr, 9, bigFile.stream);
     if(!strcmp(archiveStr, "_ARCHIVE")) {
@@ -183,14 +194,14 @@ int main(int argc, char** argv) {
         return 1;
     }
     fseek(bigFile.stream, 0, SEEK_SET);
-    
+
     printf("Loading cipher...\n");
     if(loadCipher(&bigFile)) {
         return 1;
     }
     printf("Cipher loaded!\n");
-    
-    printf("Decrypting %ukb from %s into %s...\n", bigFile.decryptedSize / 1024, argv[1], argv[2]);
+
+    printf("Decrypting %zukb from %s into %s...\n", bigFile.decryptedSize / 1024, argv[1], argv[2]);
     if(decrypt_all(&bigFile, argv[2])) {
         return 1;
     }
