@@ -16,10 +16,10 @@
 
 typedef struct {
     FILE* stream;
-    size_t decryptedSize;
-    size_t tocSize;
+    long decryptedSize;
+    long tocSize;
     long bonusData;
-    size_t bonusDataSize;
+    long bonusDataSize;
     uint32_t* cipherKey;
     uint32_t* fileKey;
     uint16_t keySize;
@@ -59,8 +59,8 @@ void decrypt(CryptFile* bigFile, char *destStr, size_t size, uint32_t keyOffset)
 
 int decrypt_all(CryptFile* bigFile, char* destFile) {
     /* 4GB MAX, MAY BE EXCEEDED AT SOME POINT */
-    size_t chunkBytes;
-    size_t current = 0;
+    long chunkBytes;
+    long current = 0;
     char *buffer = (char*) malloc(WRITE_BUFFER_SIZE);
     FILE *dest = fopen(destFile, "wb");
 
@@ -128,7 +128,7 @@ int loadCipher(CryptFile* bigFile)
       bigFile->tocSize = ftell(bigFile->stream);
       fread(&deadbe7a, 4u, 1u, bigFile->stream);
       if ( deadbe7a == 0xDEADBE7A  ) {
-        printf("Found 0xDEADBE7A, located at byte %zu\n", bigFile->tocSize);
+        printf("Found 0xDEADBE7A, located at byte %ld\n", bigFile->tocSize);
         fread(&bigFile->keySize, 2u, 1u, bigFile->stream);
         if ( bigFile->keySize - 1 <= 0x3FF ) {
           printf("Keysize detected: %d\n", bigFile->keySize);
@@ -140,7 +140,7 @@ int loadCipher(CryptFile* bigFile)
           bigFile->bonusData = ftell(bigFile->stream);
           bigFile->bonusDataSize = lastIntLoc - bigFile->bonusData;
           if(bigFile->bonusDataSize) {
-              printf("Found %zukb of bonus data\n", bigFile->bonusDataSize / 1024);
+              printf("Found %ldkb of bonus data\n", bigFile->bonusDataSize / 1024);
               bigFile->decryptedSize = lastIntLoc;
           } else {
               bigFile->decryptedSize = bigFile->tocSize;
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     }
     printf("Cipher loaded!\n");
 
-    printf("Decrypting %zukb from %s into %s...\n", bigFile.decryptedSize / 1024, argv[1], argv[2]);
+    printf("Decrypting %ldkb from %s into %s...\n", bigFile.decryptedSize / 1024, argv[1], argv[2]);
     if(decrypt_all(&bigFile, argv[2])) {
         return 1;
     }
